@@ -1,0 +1,66 @@
+---
+# This workflow integrates Qwiet with GitHub
+name: Qwiet preZero
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  #########################################################
+  # Scan dynamic languages, such as JavaScript/TypeScript,
+  # Python, and Go.
+  #########################################################
+  Qwiet-Source-Analysis:
+    runs-on: ubuntu-latest
+    # Use the shiftleft/core image, which supports multiple
+    # languages, including JavaScript/TypeScript, Python, and Go
+    container:
+      image: shiftleft/core:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ruby, js]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
+    
+    # Run Qwiet for the source languages
+    - name: Scan source languages
+      if: ${{ matrix.language == 'js' || matrix.language == 'ruby' }}
+      run: |
+        sl analyze --tag app.group=multi-vuln-app --app app-${{ matrix.language }} --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }} --${{ matrix.language }} .
+      env:
+        SHIFTLEFT_ACCESS_TOKEN: ${{ secrets.SHIFTLEFT_ACCESS_TOKEN }}
+    
+  
+  ##############################################
+  # Check for violations for each language
+  ##############################################
+  Build-Rules:
+    runs-on: ubuntu-latest
+    needs: [Qwiet-Source-Analysis, Java-Analysis]
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ruby, js]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Download Qwiet CLI
+      run: |
+        curl https://cdn.shiftleft.io/download/sl > ${GITHUB_WORKSPACE}/sl && chmod a+rx ${GITHUB_WORKSPACE}/sl
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
+    - name: Validate Build Rules per app
+      if: ${{ github.event_name == 'pull_request' }}
+      run: ${GITHUB_WORKSPACE}/sl check-analysis --v2 --config shiftleft.yml --app app-${{ matrix.language }} \
+            --branch "${{ github.head_ref || steps.extract_branch.outputs.branch }}" --report \
+            --github-pr-number=${{github.event.number}} --github-pr-user=${{ github.repository_owner }} \
+            --github-pr-repo=${{ github.event.repository.name }}  --github-token=${{ secrets.GITHUB_TOKEN }}
+      env:
+        SHIFTLEFT_ACCESS_TOKEN: ${{ secrets.SHIFTLEFT_ACCESS_TOKEN }}
