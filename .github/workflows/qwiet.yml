@@ -32,7 +32,7 @@ jobs:
     - name: Scan source languages
       if: ${{ matrix.language == 'js' || matrix.language == 'ruby' }}
       run: |
-        SHIFTLEFT_SBOM_GENERATOR=2 sl analyze --tag app.group=multi-vuln-app --app app-${{ matrix.language }} --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }} --${{ matrix.language }} .
+        SHIFTLEFT_SBOM_GENERATOR=2 sl analyze --tag app.group=multi-vuln-app --app GH-Qwiet-Ruby-${{ matrix.language }} --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }} --${{ matrix.language }} .
       env:
         SHIFTLEFT_ACCESS_TOKEN: ${{ secrets.SHIFTLEFT_ACCESS_TOKEN }}
     
