@@ -1,6 +1,6 @@
 ---
 # This workflow integrates Qwiet with GitHub
-name: Qwiet preZero
+name: Qwiet preZero Multi-Language
 
 on:
   pull_request:
